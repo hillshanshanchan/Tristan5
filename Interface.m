@@ -2,6 +2,7 @@
 Tristan Spectrometer Interface (For GUI, associated with SerialCommunication) 
 Last Updated: 27 February 2025
 Description: MATLAB-based interface for optical spectrum analysis
+
 Features:
 - Real-time spectral measurements
 - Multi-platform support (Windows/Mac/Linux)
