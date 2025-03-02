@@ -412,8 +412,8 @@ classdef Spectrum
         end
 %% 
 
-    %     % Store data in the base workspace
-    %    function storeDataInWorkspace(obj, wavelength, value)
+    %Store data in the base workspace
+    %function storeDataInWorkspace(obj, wavelength, value)
     % assignin('base', 'wavelength', wavelength);
     % assignin('base', 'value', value);
     % disp('Data stored in workspace as "wavelength" and "value".');
