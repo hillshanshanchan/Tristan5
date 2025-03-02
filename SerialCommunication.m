@@ -3,7 +3,6 @@ classdef SerialCommunication
         SerialCOM  % Serial port object
     end
     %% 
-    
     methods (Access = public)
     %% 
         % Constructor
