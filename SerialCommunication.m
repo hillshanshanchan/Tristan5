@@ -209,7 +209,7 @@ function colorName = getColorDescription(~, wavelength, intensity)
             fprintf('Weighted center wavelength: %.2f nm\n', weightedWavelength);
             
             % Color determination based on weighted center
-            if weightedWavelength < 410
+            if weightedWavelength < 450
                 colorName = 'UV/Purple';
             elseif weightedWavelength < 495
                 colorName = 'Blue';
