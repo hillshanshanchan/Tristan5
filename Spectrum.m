@@ -13,6 +13,14 @@ Features:
 classdef Spectrum
     properties (Access = public)
         SerialCOM  % Serial port object
+        % Add color ranges property
+        ColorRanges = struct('UVPurple', [380, 450], ...
+                             'Blue', [450, 495], ...
+                             'Green', [495, 570], ...
+                             'Yellow', [570, 590], ...
+                             'Orange', [590, 620], ...
+                             'Red', [620, 750], ...
+                             'White', [0, 0])  % White LED is a special case
     end
     %% 
     
@@ -273,10 +281,54 @@ classdef Spectrum
                 disp('Warning: No data available.');
                 color = 'Unknown';
             else
+                % Get color information
                 color = obj.getColorDescription(wavelength, value);
-                disp(['Light color: ', color]);
+                
+                % Get the wavelength range for this color
+                colorRange = obj.getColorRange(color);
+                
+                % Calculate peak and weighted wavelengths
+                [peakWavelength, weightedWavelength] = obj.calculateWavelengthData(wavelength, value);
+                
+                if strcmp(color, 'White LED')
+                    disp('The light is a White LED with blue and yellow peaks.');
+                    disp(['Peak wavelength: ' num2str(peakWavelength, '%.2f') ' nm']);
+                    disp(['Weighted wavelength: ' num2str(weightedWavelength, '%.2f') ' nm']);
+                else
+                    disp(['The wavelength range of ' color ' light is between ' ...
+                          num2str(colorRange(1)) '-' num2str(colorRange(2)) ' nm.']);
+                    disp(['The weighted wavelength is ' num2str(weightedWavelength, '%.2f') ' nm.']);
+                    disp(['Peak wavelength is ' num2str(peakWavelength, '%.2f') ' nm.']);
+                    disp(['Therefore, the light is ' color '.']);
+                end
             end
         end
+%% 
+
+        % Helper function to calculate wavelength data
+        function [peakWavelength, weightedWavelength] = calculateWavelengthData(obj, wavelength, intensity)
+            % Smooth the intensity data to reduce noise
+            windowSize = 15;
+            smoothedIntensity = movmean(intensity, windowSize);
+            
+            % Define spectral ranges for different colors
+            validRange = wavelength >= 250 & wavelength <= 750;
+            
+            % Work with smoothed data in valid range
+            validIntensities = smoothedIntensity(validRange);
+            validWavelengths = wavelength(validRange);
+            
+            % Find the maximum intensity and its wavelength
+            [maxIntensity, maxIndex] = max(validIntensities);
+            peakWavelength = validWavelengths(maxIndex);
+            
+            % Calculate weighted center of mass around the peak
+            threshold = maxIntensity * 0.3; % Consider points above 30% of max
+            significantPeaks = validIntensities > threshold;
+            weightedWavelength = sum(validWavelengths(significantPeaks) .* validIntensities(significantPeaks)) / ...
+                                 sum(validIntensities(significantPeaks));
+        end
+
 %% 
 
         % Save a single spectrum to CSV
@@ -348,22 +400,17 @@ classdef Spectrum
                 % Define a threshold for recognizing a white LED
                 whiteLEDThreshold = 0.3;  % Relative intensity threshold for secondary peaks
 
+                % Calculate weighted center of mass around the peak
+                threshold = maxIntensity * 0.3; % Consider points above 30% of max
+                significantPeaks = validIntensities > threshold;
+                weightedWavelength = sum(validWavelengths(significantPeaks) .* validIntensities(significantPeaks)) / ...
+                                     sum(validIntensities(significantPeaks));
+
                 % Check if both peaks are detected and meet the threshold for classification as a white LED
                 if bluePeakIntensity > maxIntensity * whiteLEDThreshold && yellowPeakIntensity > maxIntensity * whiteLEDThreshold
                     colorName = 'White LED';
-                    disp('Detected White LED spectrum with characteristic blue and yellow peaks.');
                 else
                     % Proceed with color classification for other LEDs
-                    % Calculate weighted center of mass around the peak
-                    threshold = maxIntensity * 0.3; % Consider points above 30% of max
-                    significantPeaks = validIntensities > threshold;
-                    weightedWavelength = sum(validWavelengths(significantPeaks) .* validIntensities(significantPeaks)) / ...
-                                         sum(validIntensities(significantPeaks));
-
-                    % Print diagnostic information
-                    fprintf('Peak wavelength: %.2f nm\n', peakWavelength);
-                    fprintf('Weighted center wavelength: %.2f nm\n', weightedWavelength);
-
                     % Color determination based on weighted center
                     if weightedWavelength < 410      
                         colorName = 'UV/Purple';
@@ -380,11 +427,36 @@ classdef Spectrum
                     else
                         colorName = 'Unknown';
                     end
-                    fprintf('Determined color: %s\n', colorName);
                 end
+            fprintf('Peak wavelength: %.2f nm\n', peakWavelength);
+            fprintf('Weighted center wavelength: %.2f nm\n', weightedWavelength);
+            fprintf('Determined color: %s\n', colorName);
+            
             catch ME
                 warning('Color detection failed: %s', ME.message);
                 colorName = 'Unknown';
+            end
+        end
+%% 
+        % Get color range for a specific color
+        function range = getColorRange(obj, colorName)
+            switch lower(colorName)
+                case 'uv/purple'
+                    range = obj.ColorRanges.UVPurple;
+                case 'blue'
+                    range = obj.ColorRanges.Blue;
+                case 'green'
+                    range = obj.ColorRanges.Green;
+                case 'yellow'
+                    range = obj.ColorRanges.Yellow;
+                case 'orange'
+                    range = obj.ColorRanges.Orange;
+                case 'red'
+                    range = obj.ColorRanges.Red;
+                case 'white led'
+                    range = [400, 700];  % Approximate range for white light
+                otherwise
+                    range = [0, 0];  % Default for unknown
             end
         end
 %% 
@@ -410,13 +482,5 @@ classdef Spectrum
                     colorRGB = [0.5, 0.5, 0.5];  % Default gray for unknown colors
             end
         end
-%% 
-    %Store data in the base workspace
-    %function storeDataInWorkspace(obj, wavelength, value)
-    % assignin('base', 'wavelength', wavelength);
-    % assignin('base', 'value', value);
-    % disp('Data stored in workspace as "wavelength" and "value".');
-    % drawnow;
-    % end
     end
 end
