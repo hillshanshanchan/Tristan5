@@ -24,6 +24,7 @@ classdef Interface < matlab.apps.AppBase
         OpenPortButton    matlab.ui.control.Button
         ClosePortButton   matlab.ui.control.Button
         MeasureButton     matlab.ui.control.Button
+        MeasureContButton matlab.ui.control.Button  %Continuously Measurement
         ClearAxesButton   matlab.ui.control.Button
         DataAxes          matlab.ui.control.UIAxes
         SaveDataButton    matlab.ui.control.Button
@@ -31,11 +32,13 @@ classdef Interface < matlab.apps.AppBase
         % Serial Communication
         SerialCOM
         PlotCount
+        IsMeasuringCont   logical % Flag to track continuous measurement state
     end
     %% 
     
     methods (Access = public)
         function app = Interface
+            app.IsMeasuringCont = false; % Initialize continuous measurement flag
             app.initializeGUI();
         end
         %% 
@@ -134,6 +137,13 @@ classdef Interface < matlab.apps.AppBase
                 'Text', 'Single Measure', ...
                 'ButtonPushedFcn', @(~,~) app.takeMeasurement(), ...
                 'Enable', 'off');
+
+            % Measure Continuously Button
+            app.MeasureContButton = uibutton(app.UIFigure, ...
+                'Position', [520, 400, 150, 30], ...
+                'Text', 'Measure Continuously', ...
+                'ButtonPushedFcn', @(~,~) app.toggleMeasureContinuously(), ...
+                'Enable', 'off');
             
             % Clear/Hold Plot Button
             app.ClearAxesButton = uibutton(app.UIFigure, ...
@@ -212,7 +222,7 @@ function updateCOMPortList(app)
         end
         
     catch ME
-        warning(ME.identifer,'Error detecting ports: %s', ME.message);
+        warning(ME.identifier,'Error detecting ports: %s', ME.message);
         app.COMPortPopup.Items = {'Detection Error'};
         app.COMPortPopup.Value = 'Detection Error';
         app.OpenPortButton.Enable = 'off';
@@ -235,16 +245,18 @@ end
                 app.OpenPortButton.Enable = 'off';
                 app.ClosePortButton.Enable = 'on';
                 app.MeasureButton.Enable = 'on';
+                app.MeasureContButton.Enable = 'on'; % Enable continuous measurement button
                 
                 % Show success message
-                uialert(app.UIFigure, 'Serial port opened successfully.', 'Success');
+                uialert(app.UIFigure, 'Serial port opened successfully.', 'Success','Icon', 'success');
                 
             catch ME
                 % Update UI state on error
                 app.OpenPortButton.Enable = 'on';
                 app.ClosePortButton.Enable = 'off';
                 app.MeasureButton.Enable = 'off';
-                uialert(app.UIFigure, ['Error opening port: ' ME.message], 'Error');
+                app.MeasureContButton.Enable = 'off';
+                uialert(app.UIFigure, ['Error opening port: ' ME.message], 'Icon', 'warning');
             end
         end
         %% 
@@ -253,6 +265,10 @@ end
     try
         % Check if serial connection exists
         if ~isempty(app.SerialCOM)
+            % Stop continuous measurement if running
+                    if app.IsMeasuringCont
+                        app.toggleMeasureContinuously();
+                    end
             app.SerialCOM.closePort();
             app.SerialCOM = [];
             
@@ -260,6 +276,7 @@ end
             app.OpenPortButton.Enable = 'on';
             app.ClosePortButton.Enable = 'off';
             app.MeasureButton.Enable = 'off';
+            app.MeasureContButton.Enable = 'off';
             app.SaveDataButton.Enable = 'off';  % Also disable save button
             
             % Show success message
@@ -286,6 +303,7 @@ end
         app.OpenPortButton.Enable = 'on';
         app.ClosePortButton.Enable = 'off';
         app.MeasureButton.Enable = 'off';
+        app.MeasureContButton.Enable = 'off';
         app.SaveDataButton.Enable = 'off';
     end
 end
@@ -323,6 +341,59 @@ end
                 uialert(app.UIFigure, ['Measurement failed: ' ME.message], 'Error');
             end
         end
+        %% 
+        function toggleMeasureContinuously(app)
+    try
+        % Check if port is valid
+        if isempty(app.SerialCOM)
+            error('Serial port is not connected');
+        end
+        
+        if ~app.IsMeasuringCont
+            % Start continuous measurement
+            app.IsMeasuringCont = true;
+            app.MeasureContButton.Text = 'Stop Measuring';
+            
+            % Disable other buttons to prevent conflicts
+            app.MeasureButton.Enable = 'off';
+            app.SaveDataButton.Enable = 'off';
+            app.ClearAxesButton.Enable = 'off';
+            app.ClosePortButton.Enable = 'off';
+            
+            % Get clear plot state
+            clearPlot = strcmp(app.ClearAxesButton.Text, 'Hold Plot');
+            if clearPlot
+                app.PlotCount = 0;
+            end
+            
+            % Start continuous measurement
+            app.SerialCOM.measureContinuously(app.DataAxes, clearPlot, @() app.IsMeasuringCont);
+            
+            % Reset state after measurement stops
+            app.IsMeasuringCont = false;
+            app.MeasureContButton.Text = 'Measure Continuously';
+            
+            % Re-enable buttons
+            app.MeasureButton.Enable = 'on';
+            app.SaveDataButton.Enable = 'on';
+            app.ClearAxesButton.Enable = 'on';
+            app.ClosePortButton.Enable = 'on';
+        else
+            % Stop continuous measurement
+            app.IsMeasuringCont = false;
+        end
+        
+    catch ME
+        % Ensure we reset the state on error
+        app.IsMeasuringCont = false;
+        app.MeasureContButton.Text = 'Measure Continuously';
+        app.MeasureButton.Enable = 'on';
+        app.SaveDataButton.Enable = 'on';
+        app.ClearAxesButton.Enable = 'on';
+        app.ClosePortButton.Enable = 'on';
+        uialert(app.UIFigure, ['Continuous measurement failed: ' ME.message], 'Error', 'Icon', 'error');
+    end
+end
         %% 
         
         function toggleHoldPlot(app)

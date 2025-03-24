@@ -1,6 +1,7 @@
 classdef SerialCommunication
     properties (Access = public)
         SerialCOM  % Serial port object
+        PlotCount
     end
     %% 
     methods (Access = public)
@@ -27,6 +28,7 @@ classdef SerialCommunication
     configureTerminator(obj.SerialCOM, "LF"); % Set line terminator to LF (line feed)
     obj.SerialCOM.ByteOrder = 'little-endian'; % Set byte order
     obj.SerialCOM.Timeout = 10; % Set a timeout for read operations (in seconds)
+    obj.PlotCount = 0; % Initialize plot counter
 catch ME
     error('Failed to create serialport object: %s', ME.message);
     end
@@ -51,17 +53,18 @@ catch ME
 
                 % Start single measurement
                 fprintf(obj.SerialCOM, 'Start single');
-                wait = waitbar(1/3, 'Measuring...');
+                %wait = waitbar(1/3, 'Measuring...');
                 
                 % Wait for measurement to complete based on exposure time
-                pause(6); % Default wait time for auto exposure
+                % (6->3)
+                pause(3); % Default wait time for auto exposure
                 
                 % Request spectrum data
-                waitbar(2/3, wait, 'Get current spectrum...');
+                %waitbar(2/3, wait, 'Get current spectrum...');
                 fprintf(obj.SerialCOM, 'Get spectrum cur');
                 
-                % Wait for data to be ready
-                pause(3);
+                % Wait for data to be ready (3->2)
+                pause(2);
                 
                 % Parse the spectrum data
                 [wavelength, value] = obj.parseSpectrumData();
@@ -71,12 +74,12 @@ catch ME
                     obj.plotSpectrum(wavelength, value, axesHandle, clearPlot, PlotCount);
                 end
                 
-                close(wait);
+                %close(wait);
                 
             catch ME
-                if exist('wait', 'var')
-                    close(wait);
-                end
+                % if exist('wait', 'var')
+                %     close(wait);
+                % end
                 disp(['Error occurred in function: ' ME.stack(1).name]);
                 disp(['Line number: ' num2str(ME.stack(1).line)]);
                 disp(['Error message: ' ME.message]);
@@ -84,6 +87,37 @@ catch ME
             end
         end
         %% 
+        %Measurement continuously 
+      function measureContinuously(obj, axesHandle, clearPlot, isMeasuringCallback)
+            try
+                % Reset plot count if clearing the plot
+                if clearPlot
+                    obj.PlotCount = 0;
+                end
+                
+                % Loop until the stop condition is met
+                while isMeasuringCallback()
+                    obj.PlotCount = 1;
+                    
+                    % Take a single measurement
+                    obj.takeMeasurement(axesHandle, clearPlot, obj.PlotCount);
+
+                    % Force UI update to ensure the plot is displayed
+                     drawnow;
+                    
+                    % Add a small delay to prevent overwhelming the system
+                    pause(0.1);
+                    
+                    % Reset clearPlot after the first measurement to overlay subsequent plots
+                    clearPlot = false;
+                end
+                
+            catch ME
+                disp(['Error in continuous measurement: ' ME.message]);
+                rethrow(ME);
+            end
+        end
+        %%
         
 % Parse spectrum data
 function [Wavelength, Value] = parseSpectrumData(obj)
