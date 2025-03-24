@@ -1,6 +1,6 @@
 %{
 Tristan Spectrometer Interface (For GUI, associated with SerialCommunication) 
-Last Updated: 27 February 2025
+Last Updated: 24 March 2025
 Description: MATLAB-based interface for optical spectrum analysis
 
 Features:
@@ -20,7 +20,7 @@ classdef Interface < matlab.apps.AppBase
         DataBitsPopup     matlab.ui.control.DropDown
         StopBitsPopup     matlab.ui.control.DropDown
         ParityPopup       matlab.ui.control.DropDown
-        HandshakePopup    matlab.ui.control.DropDown
+        %HandshakePopup    matlab.ui.control.DropDown
         OpenPortButton    matlab.ui.control.Button
         ClosePortButton   matlab.ui.control.Button
         MeasureButton     matlab.ui.control.Button
@@ -104,15 +104,15 @@ classdef Interface < matlab.apps.AppBase
                 'Items', {'none', 'odd', 'even'}, ...
                 'Value', 'none');
             
-            % Label and dropdown for Handshake
-            uilabel(app.UIFigure, ...
-                'Text', 'Handshake:', ...
-                'Position', [200, 250, 70, 30], ...
-                'HorizontalAlignment', 'right');
-            app.HandshakePopup = uidropdown(app.UIFigure, ...
-                'Position', [280, 250, 100, 30], ...
-                'Items', {'none', 'hardware', 'software'}, ...
-                'Value', 'none');
+            % % Label and dropdown for Handshake
+            % uilabel(app.UIFigure, ...
+            %     'Text', 'Handshake:', ...
+            %     'Position', [200, 250, 70, 30], ...
+            %     'HorizontalAlignment', 'right');
+            % app.HandshakePopup = uidropdown(app.UIFigure, ...
+            %     'Position', [280, 250, 100, 30], ...
+            %     'Items', {'none', 'hardware', 'software'}, ...
+            %     'Value', 'none');
             
             % Buttons
             % Open Port Button
@@ -163,68 +163,6 @@ classdef Interface < matlab.apps.AppBase
         end
         %% 
         
-%         function updateCOMPortList(app)
-%             % ports = Fcn_GetAvailableComPort();
-%             lCOM_Port = {};
-% 
-% try
-%     % Platform-specific port detection
-%     if ispc % Windows
-%         % Use instrument toolbox for Windows
-%         try
-%             serialInfo = instrhwinfo('serial');
-%             lCOM_Port = serialInfo.AvailablePorts;
-%         catch
-%             % Fallback method for Windows
-%             [~, result] = system('wmic path win32_serialport get deviceid');
-%             % Parse the result, removing non-port lines
-%             lines = strsplit(result, '\n');
-%             portLines = lines(~cellfun('isempty', regexpi(lines, 'COM\d+')));
-%             lCOM_Port = strtrim(portLines);
-%         end
-% 
-%     elseif ismac % macOS
-%         % Detect serial ports on macOS
-%         [status, result] = system('ls /dev/tty.* /dev/cu.*');
-%         if status == 0 && ~isempty(result)
-%             lCOM_Port = strsplit(strtrim(result));
-%         end
-% 
-%     elseif isunix % Linux
-%         % Detect serial ports on Linux
-%         [status, result] = system('ls /dev/ttyUSB* /dev/ttyACM*');
-%         if status == 0 && ~isempty(result)
-%             lCOM_Port = strsplit(strtrim(result));
-%         end
-% 
-%     else
-%         % Unsupported platform
-%         warning('Unsupported operating system for COM port detection');
-%         lCOM_Port = {};
-%     end
-% 
-%     % Additional error handling
-%     if isempty(lCOM_Port)
-%         lCOM_Port = {'No Ports Available'};
-%     end
-% 
-% catch ME
-%     % Catch and log any unexpected errors
-%     warning('Error detecting COM ports: %s', ME.message);
-%     lCOM_Port = {'Detection Error'};
-% end
-% 
-%     if isempty(lCOM_Port) || strcmp(lCOM_Port{1}, 'No Ports Available')
-%         app.COMPortPopup.Items = {'No Ports Available'};
-%         app.COMPortPopup.Value = 'No Ports Available';
-%         app.OpenPortButton.Enable = 'off';
-%     else
-%         app.COMPortPopup.Items = lCOM_Port;
-%         app.COMPortPopup.Value = lCOM_Port{1};
-%         app.OpenPortButton.Enable = 'on';
-%     end
-% end
-
 function updateCOMPortList(app)
     try
         if ispc % Windows
@@ -274,7 +212,7 @@ function updateCOMPortList(app)
         end
         
     catch ME
-        warning('Error detecting ports: %s', ME.message);
+        warning(ME.identifer,'Error detecting ports: %s', ME.message);
         app.COMPortPopup.Items = {'Detection Error'};
         app.COMPortPopup.Value = 'Detection Error';
         app.OpenPortButton.Enable = 'off';
@@ -291,8 +229,7 @@ end
                     str2double(app.BaudRatePopup.Value), ...
                     str2double(app.DataBitsPopup.Value), ...
                     str2double(app.StopBitsPopup.Value), ...
-                    app.ParityPopup.Value, ...
-                    app.HandshakePopup.Value);
+                    app.ParityPopup.Value);
                 
                 % Update UI state
                 app.OpenPortButton.Enable = 'off';
